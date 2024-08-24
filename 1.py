@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.interpolate import UnivariateSpline
 
 # 1. CSV 파일 읽기
 df = pd.read_csv('./data/6.Heatstroke_patient_prediction_train_data.csv')
@@ -20,39 +22,39 @@ header_english = [
 ]
 df.columns = header_english
 
-# 사용할 컬럼(속성) 이름 지정
-column_names = ['3.Highest Temperature (℃)', '4.Average Temperature (℃)', '9.Average Humidity (%)',
-                '10.Total Precipitation (mm)', '18.Temperature Difference (High-Low)', '19.Apparent Temperature (℃)',
-                '20.Discomfort Index', '39.Transported Patients on Previous Day']
+# X와 Y 설정
+X2 = df['10.Total Precipitation (mm)']
+Y2 = df['2.Total Transported Patients']
 
-# 색상 목록 정의
-colors = ['blue', 'green', 'red', 'purple', 'orange', 'cyan', 'magenta', 'brown']
+# X와 Y 정렬 (X가 오름차순이 되도록)
+sorted_indices = np.argsort(X2)
+X2_sorted = X2.iloc[sorted_indices]
+Y2_sorted = Y2.iloc[sorted_indices]
 
-df[column_names].plot(kind='density', figsize=(12, 10), subplots=True, layout=(3, 3), sharex=False)
+# 스플라인 회귀 (Cubic Spline) 적용
+spline = UnivariateSpline(X2_sorted, Y2_sorted, s=1)
 
-# result 디렉토리 생성
+# 결과 계산
+X_plot = np.linspace(min(X2_sorted), max(X2_sorted), 1000)
+Y_spline = spline(X_plot)
+
+# 결과 디렉토리 생성
 output_dir = './result'
 os.makedirs(output_dir, exist_ok=True)
 
-# 밀도 그래프 그리기
-fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(15, 10))
+# 그래프 그리기
+plt.figure(figsize=(10, 6))
+plt.scatter(X2_sorted, Y2_sorted, color='Blue', s=30, alpha=0.5, label='Data')
+plt.plot(X_plot, Y_spline, color='red', label='Spline Fit')
 
-# Plotting 각 subplot에 대해 밀도 그래프 그리기
-for i, col in enumerate(column_names):
-    row = i // 3
-    col_num = i % 3
-    df[col].plot(kind='density', ax=axes[row, col_num], title=col, color=colors[i % len(colors)])
-
-# 빈 서브플롯 비활성화
-for j in range(i + 1, 9):
-    fig.delaxes(axes.flatten()[j])
-
-# 제목을 그래프 아래쪽에 추가
-fig.suptitle("Density Plots of Various Features", y=0.02, fontsize=16)
-
-# 그래프 간의 간격 조정
-plt.subplots_adjust(hspace=0.4, wspace=0.4)
+# 그래프에 제목 및 레이블 추가
+plt.title("Total Precipitation vs Number of Heatstroke Patients with Spline Regression Line")
+plt.xlabel("Total Precipitation (mm)")
+plt.ylabel("Number of Heatstroke Patients")
+plt.grid(True)
+plt.legend()
 
 # 결과를 파일로 저장
-plt.savefig(os.path.join(output_dir, 'density_plots.png'))
+plt.savefig(os.path.join(output_dir, 'Total_Precipitation_Spline.png'))
 plt.show()
+
